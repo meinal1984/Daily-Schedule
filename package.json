@@ -57,16 +57,6 @@
       "public/**/*",
       "data/**/*"
     ],
-    "extraResources": [
-      {
-        "from": "dist/server.cjs",
-        "to": "app/dist/server.cjs"
-      },
-      {
-        "from": "dist/server.cjs.map",
-        "to": "app/dist/server.cjs.map"
-      }
-    ],
     "asar": true,
     "win": {
       "target": [
