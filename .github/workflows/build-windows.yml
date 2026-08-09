@@ -11,29 +11,37 @@ permissions:
 
 jobs:
   build-windows:
+    name: Build Daily Schedule for Windows
     runs-on: windows-latest
 
     steps:
+      # 1. Download repository
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # 2. Install Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
+      # 3. Install project dependencies
       - name: Install dependencies
         run: npm install
 
+      # 4. Build React + Express application
       - name: Build application
         run: npm run build
 
+      # 5. Create Windows Installer and Portable EXE
       - name: Package Windows EXE
         run: npx electron-builder --win --x64 --publish never
 
+      # 6. Upload generated EXE files
       - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
         with:
           name: Daily-Schedule-Windows
-          path: release/*.exe
+          path: |
+            release/*.exe
           if-no-files-found: error
