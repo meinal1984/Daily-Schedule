@@ -1,0 +1,6 @@
+{
+  "name": "দৈনন্দিন কর্মসূচি",
+  "description": "সরকারি ও প্রাতিষ্ঠানিক দৈনন্দিন কর্মসূচি ও সভার কার্যসূচি ব্যবস্থাপনা, সরকারি লেটারহেডসহ পিডিএফ প্রিন্ট এবং শেয়ার করার অ্যাপ।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
