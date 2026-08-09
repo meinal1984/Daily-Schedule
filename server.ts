@@ -555,11 +555,16 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
+    } else {
+    const appRoot = process.env.APP_ROOT || process.cwd();
+    const distPath = path.join(appRoot, "dist");
+
     app.use(express.static(distPath));
+
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
     });
   }
 
