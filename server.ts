@@ -9,7 +9,7 @@ const PORT = Number(process.env.PORT || 3000);
 app.use(express.json({ limit: "10mb" }));
 
 // ============================================================
-// Gemini AI
+// GEMINI AI
 // ============================================================
 
 function getGeminiClient(): GoogleGenAI | null {
@@ -30,7 +30,7 @@ function getGeminiClient(): GoogleGenAI | null {
 }
 
 // ============================================================
-// Persistent data
+// DATA STORAGE
 // ============================================================
 
 const DATA_FILE =
@@ -43,7 +43,6 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initial sample data
 if (!fs.existsSync(DATA_FILE)) {
   const defaultSchedules = [
     {
@@ -130,15 +129,15 @@ if (!fs.existsSync(DATA_FILE)) {
 }
 
 // ============================================================
-// Database helpers
+// DATABASE HELPERS
 // ============================================================
 
 function readDatabase(): any[] {
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
     return JSON.parse(raw);
-  } catch (err) {
-    console.error("Error reading database:", err);
+  } catch (error) {
+    console.error("Error reading database:", error);
     return [];
   }
 }
@@ -150,13 +149,13 @@ function writeDatabase(data: any[]): void {
       JSON.stringify(data, null, 2),
       "utf-8"
     );
-  } catch (err) {
-    console.error("Error writing database:", err);
+  } catch (error) {
+    console.error("Error writing database:", error);
   }
 }
 
 // ============================================================
-// Schedule API
+// SCHEDULE API
 // ============================================================
 
 app.get("/api/schedules", (_req, res) => {
@@ -232,14 +231,12 @@ app.delete("/api/schedules/:id", (req, res) => {
 });
 
 // ============================================================
-// Gemini status
+// GEMINI STATUS
 // ============================================================
 
 app.get("/api/gemini/status", (_req, res) => {
-  const apiKey = process.env.GEMINI_API_KEY;
-
   res.json({
-    available: !!apiKey,
+    available: !!process.env.GEMINI_API_KEY,
 
     models: {
       complex: "gemini-3.1-pro-preview",
@@ -250,62 +247,63 @@ app.get("/api/gemini/status", (_req, res) => {
 });
 
 // ============================================================
-// Gemini: Parse schedule
+// GEMINI - PARSE SCHEDULE
 // ============================================================
 
-app.post("/api/gemini/parse-schedule", async (req, res) => {
-  try {
-    const ai = getGeminiClient();
+app.post(
+  "/api/gemini/parse-schedule",
+  async (req, res) => {
+    try {
+      const ai = getGeminiClient();
 
-    if (!ai) {
-      return res.status(400).json({
-        error:
-          "GEMINI_API_KEY is not configured on the server. Please add your API key in Settings > Secrets.",
-      });
-    }
+      if (!ai) {
+        return res.status(400).json({
+          error:
+            "GEMINI_API_KEY is not configured on the server.",
+        });
+      }
 
-    const {
-      text,
-      defaultDate,
-      model = "gemini-3.5-flash",
-    } = req.body;
+      const {
+        text,
+        defaultDate,
+        model = "gemini-3.5-flash",
+      } = req.body;
 
-    if (!text || typeof text !== "string") {
-      return res.status(400).json({
-        error:
-          "Text is required for schedule parsing.",
-      });
-    }
+      if (!text || typeof text !== "string") {
+        return res.status(400).json({
+          error: "Text is required for schedule parsing.",
+        });
+      }
 
-    const todayISO =
-      defaultDate ||
-      new Date().toISOString().split("T")[0];
+      const todayISO =
+        defaultDate ||
+        new Date().toISOString().split("T")[0];
 
-    const systemInstruction = `
+      const systemInstruction = `
 You are an expert executive secretary and government administrative officer in Bangladesh specializing in official daily schedules.
 
-Your task is to parse unstructured text into a structured JSON daily schedule.
+Parse unstructured Bengali or English text into a structured government daily schedule.
 
 Return ONLY valid JSON.
 
-Required structure:
+Structure:
 
 {
-  "title": "আনুষ্ঠানিক শিরোনাম",
+  "title": "",
   "date": "YYYY-MM-DD",
-  "subject": "আনুষ্ঠানিক বিষয়",
-  "docHeading": "দৈনন্দিন কর্মসূচি",
-  "officeName": "দপ্তরের নাম",
-  "branchName": "শাখার নাম",
+  "subject": "",
+  "docHeading": "",
+  "officeName": "",
+  "branchName": "",
   "items": [
     {
       "serialNo": "১",
-      "dateAndDay": "...",
-      "timeOnly": "...",
-      "venue": "...",
-      "description": "...",
-      "chairperson": "...",
-      "remarks": "...",
+      "dateAndDay": "",
+      "timeOnly": "",
+      "venue": "",
+      "description": "",
+      "chairperson": "",
+      "remarks": "",
       "priority": "high"
     }
   ]
@@ -313,62 +311,56 @@ Required structure:
 
 Today's date is ${todayISO}.
 
-Rules:
-1. Use Bengali numerals where appropriate.
-2. Use formal Bangladesh government terminology.
-3. Sort items chronologically.
-4. Use high, medium or low priority.
+Use formal Bangladesh government terminology.
+Use Bengali numerals where appropriate.
+Sort items chronologically.
 `;
 
-    const response =
-      await ai.models.generateContent({
-        model,
-        contents:
-          `Parse this schedule text into structured JSON:\n\n${text}`,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-        },
-      });
+      const response =
+        await ai.models.generateContent({
+          model,
+          contents:
+            `Parse this schedule text into structured JSON:\n\n${text}`,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+          },
+        });
 
-    const outputText = response.text || "{}";
+      const outputText = response.text || "{}";
 
-    try {
-      const parsedData = JSON.parse(outputText);
+      try {
+        const parsedData = JSON.parse(outputText);
 
-      return res.json({
-        success: true,
-        data: parsedData,
-        rawText: outputText,
-      });
-    } catch (parseErr) {
+        return res.json({
+          success: true,
+          data: parsedData,
+          rawText: outputText,
+        });
+      } catch {
+        return res.json({
+          success: true,
+          data: null,
+          rawText: outputText,
+        });
+      }
+    } catch (error: any) {
       console.error(
-        "JSON parse error:",
-        parseErr
+        "parse-schedule error:",
+        error
       );
 
-      return res.json({
-        success: true,
-        data: null,
-        rawText: outputText,
+      return res.status(500).json({
+        error:
+          error.message ||
+          "Failed to parse schedule with Gemini AI.",
       });
     }
-  } catch (err: any) {
-    console.error(
-      "Error in parse-schedule Gemini endpoint:",
-      err
-    );
-
-    return res.status(500).json({
-      error:
-        err.message ||
-        "Failed to parse schedule with Gemini AI.",
-    });
   }
-});
+);
 
 // ============================================================
-// Gemini: Formalize schedule
+// GEMINI - FORMALIZE SCHEDULE
 // ============================================================
 
 app.post(
@@ -390,7 +382,7 @@ app.post(
         model = "gemini-3.5-flash",
       } = req.body;
 
-      if (!items || !Array.isArray(items)) {
+      if (!Array.isArray(items)) {
         return res.status(400).json({
           error: "Items array is required.",
         });
@@ -399,7 +391,7 @@ app.post(
       const systemInstruction = `
 You are a Chief Editor of Official Government Documents in Bangladesh.
 
-Refine and formalize government schedule items into polished administrative Bengali.
+Refine government schedule items into polished formal administrative Bengali.
 
 Return ONLY valid JSON:
 
@@ -408,18 +400,18 @@ Return ONLY valid JSON:
   "improvementsList": [],
   "executiveSummary": ""
 }
-`;
 
-      const prompt = JSON.stringify({
-        items,
-        letterhead,
-      });
+Use formal government terminology, correct grammar,
+standardize honorifics and make remarks actionable.
+`;
 
       const response =
         await ai.models.generateContent({
           model,
           contents:
-            `Formalize these government schedule items:\n\n${prompt}`,
+            `Formalize these government schedule items:\n\n${JSON.stringify(
+              { items, letterhead }
+            )}`,
           config: {
             systemInstruction,
             responseMimeType: "application/json",
@@ -441,15 +433,15 @@ Return ONLY valid JSON:
           rawText: outputText,
         });
       }
-    } catch (err: any) {
+    } catch (error: any) {
       console.error(
-        "Error in formalize-schedule:",
-        err
+        "formalize-schedule error:",
+        error
       );
 
       return res.status(500).json({
         error:
-          err.message ||
+          error.message ||
           "Failed to formalize schedule.",
       });
     }
@@ -457,7 +449,7 @@ Return ONLY valid JSON:
 );
 
 // ============================================================
-// Gemini: Smart sort
+// GEMINI - SMART SORT
 // ============================================================
 
 app.post(
@@ -478,7 +470,7 @@ app.post(
         model = "gemini-3.1-flash-lite",
       } = req.body;
 
-      if (!items || !Array.isArray(items)) {
+      if (!Array.isArray(items)) {
         return res.status(400).json({
           error: "Items array is required.",
         });
@@ -487,7 +479,8 @@ app.post(
       const systemInstruction = `
 You are a Smart Chronological Scheduler for government officers in Bangladesh.
 
-Sort schedule items chronologically and identify conflicts.
+Sort schedule items chronologically.
+Detect time conflicts and suggest buffer times.
 
 Return ONLY valid JSON:
 
@@ -503,7 +496,7 @@ Return ONLY valid JSON:
         await ai.models.generateContent({
           model,
           contents:
-            `Sort these schedule items:\n\n${JSON.stringify(
+            `Sort and analyze these schedule items:\n\n${JSON.stringify(
               items
             )}`,
           config: {
@@ -527,15 +520,15 @@ Return ONLY valid JSON:
           rawText: outputText,
         });
       }
-    } catch (err: any) {
+    } catch (error: any) {
       console.error(
-        "Error in smart-sort:",
-        err
+        "smart-sort error:",
+        error
       );
 
       return res.status(500).json({
         error:
-          err.message ||
+          error.message ||
           "Failed to sort schedule.",
       });
     }
@@ -543,7 +536,7 @@ Return ONLY valid JSON:
 );
 
 // ============================================================
-// Gemini: Generate briefing
+// GEMINI - GENERATE BRIEFING
 // ============================================================
 
 app.post(
@@ -585,25 +578,36 @@ You are an expert Government Protocol Secretary in Bangladesh.
 
 Generate a polished official government document.
 
-Format:
+Document type:
 ${descriptions[formatType] || formatType}
 
-Use standard Bangladesh government memo structure and formal Bengali.
+Use standard Bangladesh government administrative Bengali.
+
+Include:
+- Government office heading
+- Memo number
+- Date
+- Subject
+- Meeting details
+- Agenda
+- Instructions
+- Signature information
+- Copy distribution where appropriate
 
 Return clean Markdown.
 `;
-
-      const prompt = JSON.stringify({
-        formatType,
-        letterhead,
-        items,
-      });
 
       const response =
         await ai.models.generateContent({
           model,
           contents:
-            `Generate an official document:\n\n${prompt}`,
+            `Generate the requested official document:\n\n${JSON.stringify(
+              {
+                formatType,
+                letterhead,
+                items,
+              }
+            )}`,
           config: {
             systemInstruction,
           },
@@ -614,15 +618,15 @@ Return clean Markdown.
         document: response.text,
         formatType,
       });
-    } catch (err: any) {
+    } catch (error: any) {
       console.error(
-        "Error in generate-briefing:",
-        err
+        "generate-briefing error:",
+        error
       );
 
       return res.status(500).json({
         error:
-          err.message ||
+          error.message ||
           "Failed to generate briefing.",
       });
     }
@@ -630,7 +634,7 @@ Return clean Markdown.
 );
 
 // ============================================================
-// Gemini: Refine item
+// GEMINI - REFINE ITEM
 // ============================================================
 
 app.post(
@@ -703,15 +707,15 @@ Return ONLY valid JSON:
           rawText: outputText,
         });
       }
-    } catch (err: any) {
+    } catch (error: any) {
       console.error(
-        "Error in refine-item:",
-        err
+        "refine-item error:",
+        error
       );
 
       return res.status(500).json({
         error:
-          err.message ||
+          error.message ||
           "Failed to refine item.",
       });
     }
@@ -719,7 +723,7 @@ Return ONLY valid JSON:
 );
 
 // ============================================================
-// Gemini: Chat
+// GEMINI - CHAT ASSISTANT
 // ============================================================
 
 app.post(
@@ -748,9 +752,11 @@ app.post(
       }
 
       const systemInstruction = `
-You are "Gemini সূচি সহকারী", an intelligent assistant for Bangladesh government schedule management.
+You are "Gemini সূচি সহকারী",
+an intelligent assistant for Bangladesh government
+and institutional schedule management.
 
-Answer in clear, polite Bengali.
+Answer in clear and polite Bengali.
 
 You can:
 - Answer questions about meetings.
@@ -780,15 +786,15 @@ ${JSON.stringify(context || {})}
         success: true,
         reply: response.text,
       });
-    } catch (err: any) {
+    } catch (error: any) {
       console.error(
-        "Error in Gemini chat:",
-        err
+        "chat error:",
+        error
       );
 
       return res.status(500).json({
         error:
-          err.message ||
+          error.message ||
           "Failed to process chat.",
       });
     }
@@ -796,7 +802,7 @@ ${JSON.stringify(context || {})}
 );
 
 // ============================================================
-// Notification API
+// NOTIFICATION API
 // ============================================================
 
 app.post(
@@ -829,11 +835,23 @@ app.post(
 );
 
 // ============================================================
-// Start server
+// START SERVER
 // ============================================================
 
 async function startServer() {
+  /*
+   * IMPORTANT:
+   * Vite is loaded ONLY in development mode.
+   *
+   * This prevents the packaged Electron application
+   * from trying to load the Vite module.
+   */
+
   if (process.env.NODE_ENV !== "production") {
+    const {
+      createServer: createViteServer,
+    } = await import("vite");
+
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -843,6 +861,12 @@ async function startServer() {
 
     app.use(vite.middlewares);
   } else {
+    /*
+     * Electron sets APP_ROOT to the packaged application root.
+     * This is important because process.cwd() is not reliable
+     * after installation.
+     */
+
     const appRoot =
       process.env.APP_ROOT ||
       process.cwd();
@@ -852,21 +876,37 @@ async function startServer() {
       "dist"
     );
 
+    console.log(
+      "Production application root:",
+      appRoot
+    );
+
+    console.log(
+      "Production dist path:",
+      distPath
+    );
+
     if (!fs.existsSync(distPath)) {
-      console.error(
+      throw new Error(
         `Production dist directory not found: ${distPath}`
+      );
+    }
+
+    const indexFile = path.join(
+      distPath,
+      "index.html"
+    );
+
+    if (!fs.existsSync(indexFile)) {
+      throw new Error(
+        `index.html not found: ${indexFile}`
       );
     }
 
     app.use(express.static(distPath));
 
     app.get("*", (_req, res) => {
-      res.sendFile(
-        path.join(
-          distPath,
-          "index.html"
-        )
-      );
+      res.sendFile(indexFile);
     });
   }
 
@@ -880,6 +920,10 @@ async function startServer() {
     }
   );
 }
+
+// ============================================================
+// ERROR HANDLING
+// ============================================================
 
 startServer().catch((error) => {
   console.error(
